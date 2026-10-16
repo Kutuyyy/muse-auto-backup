@@ -46,7 +46,7 @@ STEP 3 — REQUEST FINE-GRAINED TOKEN (OPTIONAL, MORE SECURE)
 3. Store it as a SEPARATE connector from the classic one (do not overwrite). The cron will use this fine-grained connector; if the user skips this step, the cron uses the classic connector.
 
 ====================
-STEP 4 — AUTO-SCAN PROJECTS + INITIAL PUSH
+STEP 4 — AUTO-SCAN PROJECTS + INSTALL COMMIT SKILL + INITIAL PUSH
 ====================
 1. AUTO-SCAN: list all top-level project directories in ~/workspace/ (skip hidden/system housekeeping dirs). Present the list to the user IN INDONESIAN with a one-line description of each where identifiable, then ASK which projects to back up (offer "all" as the default choice).
 2. Also ASK whether to include standalone utility scripts (e.g. *.ps1 / *.py helpers created in previous sessions).
@@ -57,13 +57,20 @@ STEP 4 — AUTO-SCAN PROJECTS + INITIAL PUSH
      api-gateway/
      scripts/
        gh-actions-check.ps1
-4. Before pushing, SCAN and automatically EXCLUDE sensitive files: .env, *.env*, *secret*, *token*, *.key, *.pem, credentials*, id_rsa*, plus node_modules/, .git/, __pycache__/ directories.
-5. Prepare the local folder as a git repo (git init + initial commit) at ~/workspace/backup-<repo-name>/.
-6. Push via the GitHub git-database API, authenticating through the connector (NEVER hardcode the token in a script). Technical pitfalls you MUST avoid:
+4. INSTALL COMMIT SKILL (automatic — do not ask, just do it): download the skill from the public shared repo and install it locally, preserving folder structure:
+   - https://raw.githubusercontent.com/Kutuyyy/muse-auto-backup/main/skills/commit/SKILL.md → <skills-dir>/commit/SKILL.md
+   - https://raw.githubusercontent.com/Kutuyyy/muse-auto-backup/main/skills/commit/references/styles.md → <skills-dir>/commit/references/styles.md
+   - .../references/splitting.md, .../references/issue-links.md, .../references/messages.md (same pattern)
+   (<skills-dir> = the local skills directory, e.g. ~/workspace/custom-skills/; create it if missing.)
+   From this point on, EVERY commit in this flow MUST follow the commit skill: detect the repo's commit style from git log, group changes by intent (per project folder), write a subject stating intent + a body describing what changed. NEVER use a bare "auto-backup: <timestamp>" message.
+5. Before pushing, SCAN and automatically EXCLUDE sensitive files: .env, *.env*, *secret*, *token*, *.key, *.pem, credentials*, id_rsa*, plus node_modules/, .git/, __pycache__/ directories.
+6. Prepare the local folder as a git repo (git init + initial commit) at ~/workspace/backup-<repo-name>/.
+7. Push via the GitHub git-database API, authenticating through the connector (NEVER hardcode the token in a script). Technical pitfalls you MUST avoid:
    - A new repo is EMPTY → seed one commit first via PUT /repos/<owner>/<repo>/contents/README.md (body: message + base64 content). Without this, the git-database API returns 409.
    - Build trees with the Trees API using inline "content" for TEXT files; use the separate blob endpoint only for BINARY files.
    - Update the branch via PATCH /repos/<owner>/<repo>/git/refs/heads/main — note "refs" is PLURAL (the GET endpoint is singular /git/ref/, but PATCH requires plural).
-7. Verify: report the number of files pushed + the commit SHA, and confirm each project landed in its own folder.
+   - The push commit message MUST follow the commit skill (subject + body describing the projects included).
+8. Verify: report the number of files pushed + the commit SHA, and confirm each project landed in its own folder.
 
 ====================
 STEP 5 — HOURLY AUTO-COMMIT CRON
@@ -72,7 +79,12 @@ STEP 5 — HOURLY AUTO-COMMIT CRON
 2. Cron instructions (write in full):
    "In ~/workspace/backup-<repo-name>/, run git status --porcelain.
    - If output is EMPTY: nothing changed → do nothing, send no notification, finish.
-   - If there ARE changes: git add -A, then git commit -m 'auto-backup: <timestamp>', then push using the Step 4 push script with the GitHub connector (fine-grained if available, classic otherwise).
+   - If there ARE changes: git add -A, then commit FOLLOWING THE COMMIT SKILL (installed in Step 4): read git diff --stat, group by project folder, write a subject stating what changed and a body listing per-folder changes. Example:
+       auto-backup: 4 files changed in dimzmail, scripts
+
+       - dimzmail/: 3 files (index.js, page.html, worker.js)
+       - scripts/: 1 file (gh-actions-check.ps1)
+     NEVER use a bare 'auto-backup: <timestamp>' message. Then push using the Step 4 push script with the GitHub connector (fine-grained if available, classic otherwise).
    - If push FAILS: keep the commit locally, log the error, retry on the next schedule. Do not spam the user with notifications."
 3. Hard rules: the cron MUST NOT commit when nothing changed; the token MUST NOT be stored in any file.
 
@@ -84,4 +96,5 @@ Prove and briefly report to the user:
 2. Files are pushed (file count + latest commit SHA).
 3. The cron is registered and runs every 1 hour.
 4. Sensitive files were NOT pushed (list what was excluded).
+5. The commit skill is installed and the push commit message follows it (show the message).
 ```

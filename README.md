@@ -6,6 +6,7 @@ Hourly, fully automatic backups of your files to a **private** GitHub repository
 
 - **Auto-scans** your workspace and lists every project it finds — you just pick which ones to back up (or take all).
 - Gives **each project its own dedicated folder** inside the backup repo (`dimzmail/`, `dimzmail-tgbot/`, `api-gateway/`, …) plus a `scripts/` folder for standalone utilities — nothing ever mixes.
+- **Auto-installs the commit skill** and uses it for **every** commit — no more meaningless `auto-backup: <timestamp>` messages. Each commit says what actually changed, grouped per project folder.
 - Creates a **private** GitHub repository for your backups.
 - Installs an **hourly cron job** that commits and pushes **only when files actually changed**. No changes → no commit, no noise.
 - Automatically **excludes secrets**: `.env`, `*secret*`, `*token*`, `*.key`, `*.pem`, credentials, SSH keys, `node_modules/`, etc.
@@ -76,11 +77,24 @@ Every hour, on the hour, the cron job runs:
 ```
 git status --porcelain   →   empty?  → do nothing, stay silent
                               |
-                           changed? → git add -A → commit ("auto-backup: <timestamp>") → push
+                           changed? → git add -A → commit (via commit skill) → push
 ```
 
 - If a push fails (network issue, rate limit), the commit stays local and is retried on the next run — you won't get spammed.
 - The GitHub token is never stored in any file; every API call authenticates through the secure connector.
+
+## Commit messages
+
+Every commit — the initial push and each hourly auto-commit — follows the bundled **commit skill** (`skills/commit/`). Instead of a bare timestamp, each message states what changed, grouped per project folder:
+
+```
+auto-backup: 4 files changed in dimzmail, scripts
+
+- dimzmail/: 3 files (index.js, page.html, worker.js)
+- scripts/: 1 file (gh-actions-check.ps1)
+```
+
+The skill detects the repo's existing commit style from `git log` and matches it, so history stays readable.
 
 ## Security model
 
