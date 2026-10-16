@@ -108,6 +108,8 @@ Expected — fine-grained PATs cannot create repos on GitHub. That's why the flo
 ## What's inside
 
 - `prompt-auto-backup-github.md` — the complete copy-paste setup prompt.
+- `scripts/gh-actions-check.ps1` — check GitHub Actions artifacts (has content / empty / expired) and re-run dead workflows, from PowerShell.
+- `skills/commit/` — a commit skill: turns a dirty working tree into a clean series of well-described commits (detects the repo's commit style, groups changes by intent, writes subject + body). Includes reference guides: styles, splitting, issue links, message templates.
 - `README.md` — this file.
 
 ## License
